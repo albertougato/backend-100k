@@ -11,4 +11,6 @@ app.get("/health", (req, res) => {
 });
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
 app.use("/users", userRoutes_1.default);
+const errorHandler_1 = require("./middlewares/errorHandler");
+app.use(errorHandler_1.errorHandler);
 exports.default = app;

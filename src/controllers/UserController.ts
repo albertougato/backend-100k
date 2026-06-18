@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { UserService } from "../services/UserService";
 import { UserRepository } from "../repositories/UserRepository";
+import { createUserSchema } from "../validators/userValidator";
 
 const repository = new UserRepository();
 const service = new UserService(repository);
@@ -17,6 +18,22 @@ export class UserController {
       res.json(users);
     } catch (error) {
       next(error);
+    }
+  }
+
+  static async createUser(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const dto = createUserSchema.parse(req.body);
+
+      const user = await service.createUser(dto.name);
+
+      res.status(201).json(user);
+    } catch (err) {
+      next(err);
     }
   }
 }
