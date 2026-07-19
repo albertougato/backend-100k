@@ -1,32 +1,54 @@
-name: CI Pipeline
+name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - "**"
+
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - "**"
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: backend100k
+        options: >-
+          --health-cmd "pg_isready -U admin -d backend100k"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: admin
+      DB_PASSWORD: password
+      DB_NAME: backend100k
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Use Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: npm
 
-      - name: Install dependencies
-        run: npm install
+      - run: npm ci
 
-      - name: Run linter
-        run: npm run lint
+      - run: npm run migrate:up
 
-      - name: Run tests
-        run: npm test
+      - run: npm run lint
 
-      - name: Build project
-        run: npm run build
+      - run: npm test
+
+      - run: npm run build

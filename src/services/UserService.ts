@@ -24,5 +24,22 @@ async createUser(name: string) {
   return this.userRepository.create(name);
 }
 
+async deleteUser(id: number) {
+  return this.userRepository.delete(id);
+}
+
+async updateUser(id: number, name: string) {
+  const existingUser =
+    await this.userRepository.findByName(name);
+
+  if (existingUser && existingUser.id !== id) {
+    throw new BusinessError(
+      "User already exists",
+      409,
+    );
+  }
+
+  return this.userRepository.update(id, name);
+}
 
 }

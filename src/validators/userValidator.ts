@@ -7,6 +7,11 @@ export const createUserSchema = z.object({
     .max(255, "Name too long"),
 });
 
+export const userIdSchema = z.coerce
+  .number()
+  .int("User id must be an integer")
+  .positive("User id must be positive");
+
 export type CreateUserDto = z.infer<
   typeof createUserSchema
 >;

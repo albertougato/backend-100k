@@ -9,11 +9,11 @@ export class UserRepository {
   async findAll(): Promise<User[]> {
     const result = await db.query(
       `
-        SELECT
-          id,
-          name
-        FROM users
-        ORDER BY id
+      SELECT
+        id,
+        name
+      FROM users
+      ORDER BY id
       `,
     );
 
@@ -23,32 +23,55 @@ export class UserRepository {
   async findByName(name: string): Promise<User | null> {
     const result = await db.query(
       `
-        SELECT
-          id,
-          name
-        FROM users
-        WHERE name = $1
+      SELECT
+        id,
+        name
+      FROM users
+      WHERE name = $1
       `,
       [name],
     );
 
-    if (result.rows.length === 0) {
-      return null;
-    }
+    return result.rows[0] ?? null;
+  }
+
+  async create(name: string): Promise<User> {
+    const result = await db.query(
+      `
+      INSERT INTO users(name)
+      VALUES ($1)
+      RETURNING id, name
+      `,
+      [name],
+    );
 
     return result.rows[0];
   }
 
-   async create(name: string): Promise<User> {
+  async delete(id: number): Promise<boolean> {
     const result = await db.query(
       `
-        INSERT INTO users(name)
-        VALUES ($1)
-        RETURNING id, name
+      DELETE FROM users
+      WHERE id = $1
+      RETURNING id
       `,
-      [name],
+      [id],
     );
 
-    return result.rows[0];
+    return result.rowCount === 1;
+  }
+
+  async update(id: number, name: string): Promise<User | null> {
+    const result = await db.query(
+      `
+      UPDATE users
+      SET name = $2
+      WHERE id = $1
+      RETURNING id, name
+      `,
+      [id, name],
+    );
+
+    return result.rows[0] ?? null;
   }
 }
