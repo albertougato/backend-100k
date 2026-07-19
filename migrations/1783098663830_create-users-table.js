@@ -9,7 +9,6 @@ exports.up = (pgm) => {
     name: {
       type: "text",
       notNull: true,
-      unique: true,
     },
   });
 };
