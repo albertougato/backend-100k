@@ -7,11 +7,7 @@ const repository = new UserRepository();
 const service = new UserService(repository);
 
 export class UserController {
-  static async getUsers(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-  ) {
+  static async getUsers(req: Request, res: Response, next: NextFunction) {
     try {
       const users = await service.getUsers();
 
@@ -21,11 +17,7 @@ export class UserController {
     }
   }
 
-  static async createUser(
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ) {
+  static async createUser(req: Request, res: Response, next: NextFunction) {
     try {
       const dto = createUserSchema.parse(req.body);
 
@@ -37,11 +29,7 @@ export class UserController {
     }
   }
 
-  static async deleteUser(
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ) {
+  static async deleteUser(req: Request, res: Response, next: NextFunction) {
     try {
       const id = userIdSchema.parse(req.params.id);
 
@@ -61,11 +49,7 @@ export class UserController {
     }
   }
 
-  static async updateUser(
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ) {
+  static async updateUser(req: Request, res: Response, next: NextFunction) {
     try {
       const id = userIdSchema.parse(req.params.id);
 

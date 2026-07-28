@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { ZodError } from "zod";
+import { logger } from "../config/logger";
 import { BusinessError } from "../errors/BusinessError";
 
 export function errorHandler(
@@ -8,7 +9,15 @@ export function errorHandler(
   res: Response,
   _next: NextFunction,
 ) {
-  console.error(err);
+  logger.error(
+    {
+      err,
+      requestId: _req.requestId,
+      method: _req.method,
+      path: _req.path,
+    },
+    "request failed",
+  );
 
   if (err instanceof ZodError) {
     res.status(400).json({
@@ -28,8 +37,26 @@ export function errorHandler(
     return;
   }
 
+  if (isPostgresUniqueViolation(err)) {
+    res.status(409).json({
+      success: false,
+      message: "A user with these details already exists",
+    });
+
+    return;
+  }
+
   res.status(500).json({
     success: false,
     message: "Internal server error",
   });
+}
+
+function isPostgresUniqueViolation(error: unknown): error is { code: string } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "23505"
+  );
 }

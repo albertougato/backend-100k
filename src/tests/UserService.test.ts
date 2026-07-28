@@ -8,9 +8,13 @@ describe("UserService", () => {
   function createRepository(overrides: Partial<UserRepository> = {}) {
     return {
       findAll: jest.fn<Promise<User[]>, []>().mockResolvedValue([user]),
-      findByName: jest.fn<Promise<User | null>, [string]>().mockResolvedValue(null),
+      findByName: jest
+        .fn<Promise<User | null>, [string]>()
+        .mockResolvedValue(null),
       create: jest.fn<Promise<User>, [string]>().mockResolvedValue(user),
-      update: jest.fn<Promise<User | null>, [number, string]>().mockResolvedValue(user),
+      update: jest
+        .fn<Promise<User | null>, [number, string]>()
+        .mockResolvedValue(user),
       delete: jest.fn<Promise<boolean>, [number]>().mockResolvedValue(true),
       ...overrides,
     } as unknown as UserRepository;
@@ -35,7 +39,9 @@ describe("UserService", () => {
 
   it("rejects a duplicate user name", async () => {
     const repository = createRepository({
-      findByName: jest.fn<Promise<User | null>, [string]>().mockResolvedValue(user),
+      findByName: jest
+        .fn<Promise<User | null>, [string]>()
+        .mockResolvedValue(user),
     });
     const service = new UserService(repository);
 

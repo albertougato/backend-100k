@@ -1,6 +1,7 @@
 node_modules
 dist
+coverage
 .git
-.gitignore
-Dockerfile
+.github
+.env
 npm-debug.log

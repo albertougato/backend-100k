@@ -1,5 +1,7 @@
+import jwt from "jsonwebtoken";
 import request from "supertest";
 import { db } from "../config/database";
+import { env } from "../config/env";
 import app from "../app";
 
 jest.mock("../config/database", () => ({
@@ -12,6 +14,7 @@ describe("User routes", () => {
   let users: User[];
   let nextId: number;
   const query = db.query as jest.Mock;
+  const authHeader = `Bearer ${jwt.sign({ sub: "1" }, env.JWT_SECRET)}`;
 
   beforeEach(() => {
     users = [];
@@ -69,8 +72,25 @@ describe("User routes", () => {
     jest.restoreAllMocks();
   });
 
+  it("rejects writes without a valid token", async () => {
+    await expect(
+      request(app).post("/users").send({ name: "Mario" }),
+    ).resolves.toMatchObject({ status: 401 });
+
+    await expect(
+      request(app).put("/users/1").send({ name: "Luigi" }),
+    ).resolves.toMatchObject({ status: 401 });
+
+    await expect(request(app).delete("/users/1")).resolves.toMatchObject({
+      status: 401,
+    });
+  });
+
   it("creates, lists, updates and deletes a user", async () => {
-    const created = await request(app).post("/users").send({ name: "Mario" });
+    const created = await request(app)
+      .post("/users")
+      .set("Authorization", authHeader)
+      .send({ name: "Mario" });
 
     expect(created.status).toBe(201);
     expect(created.body).toEqual({ id: 1, name: "Mario" });
@@ -80,21 +100,35 @@ describe("User routes", () => {
       body: [{ id: 1, name: "Mario" }],
     });
 
-    const updated = await request(app).put("/users/1").send({ name: "Luigi" });
+    const updated = await request(app)
+      .put("/users/1")
+      .set("Authorization", authHeader)
+      .send({ name: "Luigi" });
     expect(updated.status).toBe(200);
     expect(updated.body).toEqual({ id: 1, name: "Luigi" });
 
-    await expect(request(app).delete("/users/1")).resolves.toMatchObject({
+    await expect(
+      request(app).delete("/users/1").set("Authorization", authHeader),
+    ).resolves.toMatchObject({
       status: 204,
     });
   });
 
   it("returns 400 for invalid input", async () => {
-    await expect(request(app).post("/users").send({ name: "" })).resolves.toMatchObject({
+    await expect(
+      request(app)
+        .post("/users")
+        .set("Authorization", authHeader)
+        .send({ name: "" }),
+    ).resolves.toMatchObject({
       status: 400,
     });
 
-    await expect(request(app).delete("/users/not-a-number")).resolves.toMatchObject({
+    await expect(
+      request(app)
+        .delete("/users/not-a-number")
+        .set("Authorization", authHeader),
+    ).resolves.toMatchObject({
       status: 400,
     });
   });
@@ -103,16 +137,28 @@ describe("User routes", () => {
     users = [{ id: 1, name: "Mario" }];
     nextId = 2;
 
-    await expect(request(app).post("/users").send({ name: "Mario" })).resolves.toMatchObject({
+    await expect(
+      request(app)
+        .post("/users")
+        .set("Authorization", authHeader)
+        .send({ name: "Mario" }),
+    ).resolves.toMatchObject({
       status: 409,
       body: { success: false, message: "User already exists" },
     });
 
-    await expect(request(app).put("/users/99").send({ name: "Luigi" })).resolves.toMatchObject({
+    await expect(
+      request(app)
+        .put("/users/99")
+        .set("Authorization", authHeader)
+        .send({ name: "Luigi" }),
+    ).resolves.toMatchObject({
       status: 404,
     });
 
-    await expect(request(app).delete("/users/99")).resolves.toMatchObject({
+    await expect(
+      request(app).delete("/users/99").set("Authorization", authHeader),
+    ).resolves.toMatchObject({
       status: 404,
     });
   });

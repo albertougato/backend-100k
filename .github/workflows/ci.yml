@@ -34,6 +34,7 @@ jobs:
       DB_USER: admin
       DB_PASSWORD: password
       DB_NAME: backend100k
+      JWT_SECRET: ci-test-secret
 
     steps:
       - uses: actions/checkout@v4
@@ -48,6 +49,8 @@ jobs:
       - run: npm run migrate:up
 
       - run: npm run lint
+
+      - run: npm run format:check
 
       - run: npm test
 
