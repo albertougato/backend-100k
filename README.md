@@ -80,12 +80,17 @@ pull request, against a real Postgres service container:
 4. `npm run format:check`
 5. `npm test`
 6. `npm run build`
+7. `docker build` — the production image must build from a clean checkout
+8. on `push` to `main` only: push the image to
+   [GHCR](https://ghcr.io) as `ghcr.io/<owner>/backend-100k:<sha>` and `:latest`
 
 Any failing step fails the workflow, so broken code can't merge silently.
 This is CI: every change is automatically installed, migrated, linted,
-tested, and built before it's trusted.
+tested, built, and containerized before it's trusted. Steps 1-7 run for
+every push and pull request (including feature branches); step 8 is gated
+to `main` only, since publishing an image for every branch would spam the
+registry and pull requests from forks don't have push access anyway.
 
-CD (automated deployment on merge to `main`) is the next step — the
-`Dockerfile` already produces a production-ready image, so the pipeline can
-be extended to build, push to a registry, and deploy it without a manual
-step.
+CD (automated deployment) is the next step: have a server pull the freshly
+pushed image and restart the container automatically, instead of stopping
+at "image is ready in the registry".
