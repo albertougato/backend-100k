@@ -71,3 +71,35 @@ jobs:
           docker tag backend-100k:${{ github.sha }} ghcr.io/${{ github.repository }}:latest
           docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
           docker push ghcr.io/${{ github.repository }}:latest
+
+      - name: Set up SSH for deploy
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Run database migrations on server
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5433
+          DB_USER: ${{ secrets.PROD_DB_USER }}
+          DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          DB_NAME: ${{ secrets.PROD_DB_NAME }}
+        run: |
+          ssh -f -N -i ~/.ssh/deploy_key -L 5433:127.0.0.1:5432 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+          sleep 2
+          npm run migrate:up
+          pkill -f "5433:127.0.0.1:5432" || true
+
+      - name: Deploy to server
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} '
+            cd ~/app &&
+            docker compose pull api &&
+            docker compose up -d api &&
+            docker image prune -f
+          '

@@ -83,14 +83,23 @@ pull request, against a real Postgres service container:
 7. `docker build` — the production image must build from a clean checkout
 8. on `push` to `main` only: push the image to
    [GHCR](https://ghcr.io) as `ghcr.io/<owner>/backend-100k:<sha>` and `:latest`
+9. on `push` to `main` only: open an SSH tunnel to the production database
+   and run `npm run migrate:up` against it, using the local migration files
+   (the published image intentionally doesn't ship `migrations/`, so the
+   schema is migrated from CI, not from inside the container)
+10. on `push` to `main` only: SSH into the server, `docker compose pull`
+    the new image, restart the `api` container, and prune old images
 
 Any failing step fails the workflow, so broken code can't merge silently.
 This is CI: every change is automatically installed, migrated, linted,
 tested, built, and containerized before it's trusted. Steps 1-7 run for
-every push and pull request (including feature branches); step 8 is gated
-to `main` only, since publishing an image for every branch would spam the
-registry and pull requests from forks don't have push access anyway.
+every push and pull request (including feature branches); steps 8-10 are
+gated to `main` only, since publishing an image or touching the production
+server for every branch would be both wasteful and dangerous, and pull
+requests from forks don't have access to the deploy secrets anyway.
 
-CD (automated deployment) is the next step: have a server pull the freshly
-pushed image and restart the container automatically, instead of stopping
-at "image is ready in the registry".
+This is now full CD: a `git push` to `main` ends with the new code running
+on the server, with no manual step in between. The production database is
+never exposed to the internet — CI reaches it the same way a human would,
+through an SSH tunnel authenticated with a dedicated deploy key that has no
+other privileges than reaching this one server.
