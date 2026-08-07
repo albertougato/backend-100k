@@ -103,3 +103,23 @@ on the server, with no manual step in between. The production database is
 never exposed to the internet — CI reaches it the same way a human would,
 through an SSH tunnel authenticated with a dedicated deploy key that has no
 other privileges than reaching this one server.
+
+## Secrets management
+
+No secret ever lives in the repo — `.env` is gitignored, `.env.example`
+documents the shape without real values, and git history has been checked
+for leaks (none found). Everything real lives in one of two places:
+
+| Secret | Where it lives | Used for | Rotate when |
+|---|---|---|---|
+| `JWT_SECRET` (prod) | server-side `.env` only | signing auth tokens | on suspected compromise only — rotating invalidates every issued token and logs everyone out, so it's not done on a schedule |
+| `DB_PASSWORD` (prod) | server-side `.env` + GitHub secret `PROD_DB_PASSWORD` | Postgres auth | periodically; requires updating both places together, then redeploying |
+| `DEPLOY_SSH_KEY` | GitHub secret only (public half in the server's `authorized_keys`) | CI → server access, dedicated to this one purpose | if the repo's secrets are ever suspected exposed |
+| GHCR pull access | **not stored anywhere persistent** — each deploy logs in with the run's own `GITHUB_TOKEN` and logs out immediately after | pulling the image on the server | nothing to rotate, it expires on its own every run |
+
+The last row is deliberate: earlier this project used a long-lived GitHub
+Personal Access Token stored in the server's Docker config to pull images,
+which meant a credential sitting on disk that would silently break the
+pipeline when it expired. It was replaced with a per-deploy, self-expiring
+token and the standing credential was revoked (`docker logout`) — one less
+long-lived secret to lose track of.

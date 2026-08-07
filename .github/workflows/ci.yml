@@ -98,8 +98,10 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           ssh -i ~/.ssh/deploy_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} '
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin &&
             cd ~/app &&
             docker compose pull api &&
             docker compose up -d api &&
-            docker image prune -f
+            docker image prune -f &&
+            docker logout ghcr.io
           '
