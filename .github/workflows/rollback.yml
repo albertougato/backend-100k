@@ -1,0 +1,52 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Git SHA to redeploy (find it on GHCR package tags, or in git log)"
+        required: true
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Redeploy chosen version
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} '
+            set -e
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull ghcr.io/${{ github.repository }}:${{ inputs.version }}
+            docker logout ghcr.io
+            docker tag ghcr.io/${{ github.repository }}:${{ inputs.version }} ghcr.io/${{ github.repository }}:latest
+
+            cd ~/app
+            docker compose up -d api
+
+            for i in $(seq 1 15); do
+              health=$(docker inspect --format="{{.State.Health.Status}}" app-api-1)
+              echo "health check attempt $i: $health"
+              if [ "$health" = "healthy" ]; then
+                echo "Rolled back to ${{ inputs.version }}"
+                exit 0
+              fi
+              if [ "$health" = "unhealthy" ]; then
+                echo "ROLLBACK FAILED: container reported unhealthy" >&2
+                docker logs app-api-1 --tail 30 >&2
+                exit 1
+              fi
+              sleep 4
+            done
+
+            echo "ROLLBACK FAILED: timed out waiting for healthy status" >&2
+            docker logs app-api-1 --tail 30 >&2
+            exit 1
+          '

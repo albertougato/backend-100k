@@ -127,3 +127,26 @@ which meant a credential sitting on disk that would silently break the
 pipeline when it expired. It was replaced with a per-deploy, self-expiring
 token and the standing credential was revoked (`docker logout`) — one less
 long-lived secret to lose track of.
+
+## Rollback
+
+Every image pushed to GHCR is tagged with the exact git SHA it was built
+from (visible live at `GET /health`), so any previously deployed version can
+be redeployed on demand via
+[`.github/workflows/rollback.yml`](.github/workflows/rollback.yml):
+
+```
+gh workflow run rollback.yml -f version=<git-sha>
+```
+
+(or from GitHub → Actions → "Rollback" → "Run workflow"). It reuses the same
+ephemeral-login and health-check-verified deploy logic as the normal
+pipeline — it just skips the build/test/push steps and redeploys an image
+that's already published.
+
+**This rolls back the code, not the database schema.** If the version being
+rolled back to predates a migration that's already been applied, check
+whether the migration is backward-compatible before rolling back; if not,
+run `npm run migrate:down` through the same SSH tunnel used for forward
+migrations (see the "Run database migrations on server" step in `ci.yml`
+for the tunnel command) before redeploying the older code.
