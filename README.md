@@ -88,7 +88,11 @@ pull request, against a real Postgres service container:
    (the published image intentionally doesn't ship `migrations/`, so the
    schema is migrated from CI, not from inside the container)
 10. on `push` to `main` only: SSH into the server, `docker compose pull`
-    the new image, restart the `api` container, and prune old images
+    the new image, restart the `api` container, then poll it for up to a
+    minute and **fail the deploy** if it never reports `healthy` — the image
+    has a `HEALTHCHECK` (`wget` against `/health`), so a container that
+    starts but crash-loops, or never becomes ready, fails the pipeline
+    instead of silently leaving a broken version running in production
 
 Any failing step fails the workflow, so broken code can't merge silently.
 This is CI: every change is automatically installed, migrated, linted,
