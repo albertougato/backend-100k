@@ -150,3 +150,22 @@ whether the migration is backward-compatible before rolling back; if not,
 run `npm run migrate:down` through the same SSH tunnel used for forward
 migrations (see the "Run database migrations on server" step in `ci.yml`
 for the tunnel command) before redeploying the older code.
+
+## Branches and environments
+
+| Branch | CI | CD | Environment |
+|---|---|---|---|
+| feature branches / PRs | build, lint, format, test, build | — | none, validation only |
+| `develop` | same, plus builds and pushes `:dev` | deploys automatically | staging: `http://<server>:3001` |
+| `main` | same, plus builds and pushes `:sha`/`:latest` | deploys automatically | production: `http://<server>:3000` |
+
+Staging and production run as separate containers (`api` and `api-staging`
+in [`docker-compose.yml`](docker-compose.yml)) sharing one Postgres server
+but with **separate databases and separate credentials** — staging can never
+read or write production data. This is also where schema changes get
+proven safe: a migration runs against the staging database on every
+`develop` push, before it ever touches production on `main`.
+
+Day to day: feature branches get merged into `develop` first (staging picks
+up the change and you can poke at it at `:3001`); once it looks right,
+`develop` gets merged into `main` and the same code goes to production.
