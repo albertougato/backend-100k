@@ -19,7 +19,10 @@ RUN npm run build
 
 FROM node:22-alpine AS production
 
+ARG APP_VERSION=dev
+
 ENV NODE_ENV=production
+ENV APP_VERSION=$APP_VERSION
 
 WORKDIR /app
 

@@ -16,7 +16,9 @@ app.use(express.json());
 app.use(requestLogger);
 
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok" });
+  res
+    .status(200)
+    .json({ status: "ok", version: process.env.APP_VERSION ?? "dev" });
 });
 
 import userRoutes from "./routes/userRoutes";

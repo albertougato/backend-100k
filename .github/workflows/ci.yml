@@ -61,7 +61,7 @@ jobs:
       - run: npm run build
 
       - name: Build Docker image
-        run: docker build -t backend-100k:${{ github.sha }} .
+        run: docker build --build-arg APP_VERSION=${{ github.sha }} -t backend-100k:${{ github.sha }} .
 
       - name: Push image to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
