@@ -12,8 +12,8 @@
     "format": "prettier --write src",
     "format:check": "prettier --check src",
     "migrate:create": "node-pg-migrate create",
-    "migrate:up": "node-pg-migrate up -f node-pg-migrate.config.js",
-    "migrate:down": "node-pg-migrate down -f node-pg-migrate.config.js"
+    "migrate:up": "node-pg-migrate up -f node-pg-migrate.config.js -d NO_DATABASE_URL",
+    "migrate:down": "node-pg-migrate down -f node-pg-migrate.config.js -d NO_DATABASE_URL"
   },
   "keywords": [],
   "author": "",

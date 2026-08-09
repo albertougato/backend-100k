@@ -169,3 +169,41 @@ proven safe: a migration runs against the staging database on every
 Day to day: feature branches get merged into `develop` first (staging picks
 up the change and you can poke at it at `:3001`); once it looks right,
 `develop` gets merged into `main` and the same code goes to production.
+
+## AWS deployment
+
+The same application also runs on AWS, as a second, independent
+demonstration of the same practices on a different, more "enterprise"
+stack — this doesn't replace the Oracle-hosted environments above, it's a
+parallel deployment target:
+
+- **ECS (EC2 launch type)** — a single free-tier `t3.micro` registers itself
+  to the cluster via the ECS agent; no Fargate (not covered by the free
+  tier) and no Application Load Balancer (has an hourly cost even at low
+  traffic) — the instance is reached directly, same trade-off made for the
+  Oracle VPS.
+- **RDS Postgres** (free tier, single-AZ, not publicly accessible) instead
+  of a self-hosted container — connections require TLS, verified against
+  AWS's real CA bundle ([`certs/rds-global-bundle.pem`](certs/rds-global-bundle.pem)), not just
+  encrypted-and-unverified.
+- **ECR** instead of GHCR for this environment's images.
+- **CloudWatch Logs** for centralized logging (`/ecs/backend100k`).
+- **SSM Parameter Store** (SecureString) for `JWT_SECRET` and the DB
+  password — non-secret config (host, user, db name) stays as plain task
+  definition environment variables.
+- Deploys via [`deploy-aws.yml`](.github/workflows/deploy-aws.yml), triggered
+  manually (`gh workflow run deploy-aws.yml`) rather than on every push —
+  this is a skills demonstration running alongside the "real" CD pipeline
+  above, not something that should redeploy on every commit by default.
+  It authenticates to AWS with **OIDC**, not stored access keys: GitHub
+  issues a short-lived token, AWS exchanges it for a role scoped to exactly
+  this repo and branch — no long-lived AWS credentials exist anywhere in
+  CI. The role's permissions are scoped to this one ECR repository and this
+  one ECS service, not account-wide.
+
+Both the migration step and the deployment wait for real confirmation
+before declaring success: migrations run over an SSH tunnel through the EC2
+instance to the private RDS endpoint (same pattern as the Oracle
+deployments), and the workflow calls `aws ecs wait services-stable` —
+which relies on the same Docker `HEALTHCHECK` already built into the
+image — before considering the deploy done.

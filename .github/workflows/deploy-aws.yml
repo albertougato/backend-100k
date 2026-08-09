@@ -1,0 +1,103 @@
+name: Deploy to AWS ECS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: eu-south-1
+  ECR_REPOSITORY: backend-100k
+  ECS_CLUSTER: backend100k-cluster
+  ECS_SERVICE: backend100k-service
+  ECS_TASK_FAMILY: backend100k
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Configure AWS credentials (OIDC, no stored keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        run: |
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
+            docker login --username AWS --password-stdin \
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+
+      - name: Build and push image to ECR
+        run: |
+          IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}
+          docker build --build-arg APP_VERSION=${{ github.sha }} -t $IMAGE_URI:${{ github.sha }} .
+          docker tag $IMAGE_URI:${{ github.sha }} $IMAGE_URI:latest
+          docker push $IMAGE_URI:${{ github.sha }}
+          docker push $IMAGE_URI:latest
+          echo "IMAGE_URI=$IMAGE_URI:${{ github.sha }}" >> $GITHUB_ENV
+
+      - name: Set up SSH tunnel for migrations
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AWS_EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan -H ${{ secrets.AWS_EC2_HOST }} >> ~/.ssh/known_hosts
+          ssh -f -N -i ~/.ssh/ec2_key \
+            -L 5434:${{ secrets.AWS_RDS_HOST }}:5432 \
+            ec2-user@${{ secrets.AWS_EC2_HOST }}
+          sleep 2
+
+      - name: Run database migrations on RDS
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5434
+          DB_USER: ${{ secrets.AWS_RDS_USER }}
+          DB_PASSWORD: ${{ secrets.AWS_RDS_PASSWORD }}
+          DB_NAME: ${{ secrets.AWS_RDS_DB_NAME }}
+          DB_SSL_CA_PATH: ./certs/rds-global-bundle.pem
+          DB_SSL_SERVERNAME: ${{ secrets.AWS_RDS_HOST }}
+        run: npm run migrate:up
+
+      - name: Register new task definition revision
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.ECS_TASK_FAMILY }} \
+            --query "taskDefinition" > current-task-def.json
+
+          jq --arg IMAGE "$IMAGE_URI" \
+            '.containerDefinitions[0].image = $IMAGE
+             | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
+            current-task-def.json > new-task-def.json
+
+          aws ecs register-task-definition --cli-input-json file://new-task-def.json
+
+      - name: Deploy new task definition to the service
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --task-definition ${{ env.ECS_TASK_FAMILY }} \
+            --force-new-deployment
+
+      - name: Wait for service to stabilize
+        run: |
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE }}
+
+      - name: Verify deployment
+        run: |
+          curl -sf http://${{ secrets.AWS_EC2_HOST }}:3000/health | tee /dev/stderr | grep -q '"status":"ok"'
