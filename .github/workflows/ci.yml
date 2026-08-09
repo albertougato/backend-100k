@@ -109,7 +109,7 @@ jobs:
               health=$(docker inspect --format="{{.State.Health.Status}}" app-api-1)
               echo "health check attempt $i: $health"
               if [ "$health" = "healthy" ]; then
-                docker image prune -f
+                docker image prune -f || true
                 exit 0
               fi
               if [ "$health" = "unhealthy" ]; then
@@ -163,7 +163,7 @@ jobs:
               health=$(docker inspect --format="{{.State.Health.Status}}" app-api-staging-1)
               echo "health check attempt $i: $health"
               if [ "$health" = "healthy" ]; then
-                docker image prune -f
+                docker image prune -f || true
                 exit 0
               fi
               if [ "$health" = "unhealthy" ]; then
