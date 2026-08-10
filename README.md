@@ -170,6 +170,11 @@ Day to day: feature branches get merged into `develop` first (staging picks
 up the change and you can poke at it at `:3001`); once it looks right,
 `develop` gets merged into `main` and the same code goes to production.
 
+`main` is a protected branch: no direct pushes, from anyone, no exceptions
+for admins. Every change lands through a Pull Request, and GitHub blocks
+the merge button until the `build` check (lint, format, test, build) is
+green — this is enforced by GitHub itself, not just team discipline.
+
 ## AWS deployment
 
 The same application also runs on AWS, as a second, independent
