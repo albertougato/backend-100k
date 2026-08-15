@@ -1,4 +1,4 @@
-# backend-100k
+# codeforge
 
 A small REST API built to practice production-grade backend practices: layered
 architecture, authentication, structured logging, database migrations,
@@ -82,7 +82,7 @@ pull request, against a real Postgres service container:
 6. `npm run build`
 7. `docker build` — the production image must build from a clean checkout
 8. on `push` to `main` only: push the image to
-   [GHCR](https://ghcr.io) as `ghcr.io/<owner>/backend-100k:<sha>` and `:latest`
+   [GHCR](https://ghcr.io) as `ghcr.io/<owner>/codeforge:<sha>` and `:latest`
 9. on `push` to `main` only: open an SSH tunnel to the production database
    and run `npm run migrate:up` against it, using the local migration files
    (the published image intentionally doesn't ship `migrations/`, so the
@@ -180,7 +180,11 @@ green — this is enforced by GitHub itself, not just team discipline.
 The same application also runs on AWS, as a second, independent
 demonstration of the same practices on a different, more "enterprise"
 stack — this doesn't replace the Oracle-hosted environments above, it's a
-parallel deployment target:
+parallel deployment target. The AWS resources below still carry the
+project's old name (`backend-100k`/`backend100k`) — most AWS resource
+names are immutable after creation, and renaming them means recreating
+each one, for zero benefit beyond cosmetics, so they were deliberately
+left as they are when the project was renamed.
 
 - **ECS (EC2 launch type)** — a single free-tier `t3.micro` registers itself
   to the cluster via the ECS agent; no Fargate (not covered by the free
